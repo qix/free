@@ -1,6 +1,7 @@
 <?php
 require dirname(__FILE__).'/array.php';
 require dirname(__FILE__).'/encode.php';
+require dirname(__FILE__).'/string.php';
 
 $components_dir = dirname(__FILE__).'/components/';
 
