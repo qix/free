@@ -154,3 +154,34 @@ function array_combine_same(&$input) {
   return array_combine($input, $input);
 }
 
+/***
+ * Convert an array into <option> html tags
+ **/
+function html_options($options, $default=NULL, $multiple=False) {
+  $group = NULL;
+  foreach ($options as $key => $option) {
+    $option = options($option, array('caption', 'group'));
+    $option['key'] = ARR($option, 'key', $key);
+
+    if (($g = ARR($option, 'group')) && ($g != $group)) {
+      if ($group) print '</optgroup>';
+      print '<optgroup label="'.HTML($g).'">';
+      $group = $g;
+    }
+    $value = ARR($option, 'key');
+    // is this option selected?
+    $selected = NULL;
+    if ($multiple) {
+      $selected = $default && in_array($value, $default);  
+    } else {
+      $selected = $default == $value;
+    }
+    print '<option'.html_attributes(array(
+      'value'=>$value,
+      'data'=>ARR($option, 'data'),
+      'selected'=>$selected?'selected':NULL
+    )).'>'.HTML(ARR($option,'caption')).'</option>';
+  }
+  if ($group) print '</optgroup>';
+}
+
