@@ -1,29 +1,9 @@
 <?php
+require dirname(__FILE__).'/autoload.php';
 require dirname(__FILE__).'/array.php';
 require dirname(__FILE__).'/encode.php';
 require dirname(__FILE__).'/string.php';
-
-$components_dir = dirname(__FILE__).'/components/';
-
-/***
- * Component autoloader
- **/
-spl_autoload_register(function($class) use ($components_dir) {
-  $split = explode('\\', strtolower($class));
-  if (count($split) == 2) {
-    list($namespace, $class) = $split;
-    if (file_exists($components_dir.$namespace)) {
-      $dir = $components_dir.$namespace.'/';
-      if (file_exists("$dir$namespace.php")) {
-        require_once "$dir$namespace.php";
-      }
-
-      if (file_exists("$dir$class.php")) {
-        require_once "$dir$class.php";
-      }
-    }
-  }
-});
+require dirname(__FILE__).'/exception.php';
 
 /***
  * A few interfaces that I feel should be important

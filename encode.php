@@ -11,6 +11,8 @@ class Value {
 
 // SQL
 class SQL extends Value {
+  private static $defaultLock = 'share';
+
   static function encode($value) {
     if ((is_int($value)) || (is_float($value))) {
       return strval($value);
@@ -19,12 +21,99 @@ class SQL extends Value {
     }elseif (is_null($value)) {
       return 'NULL';
     }elseif ($value instanceof SQL) {
-      return strval($value);
+      return $value->getValue();
     }elseif (is_object($value) || is_string($value)) {
       return '\''.mysql_real_escape_string(strval($value)).'\'';
+    }elseif (is_array($value)) {
+      return array_map(array('SQL', 'encode'), $value); 
     }else{
       throw new InvalidArgumentException();
     }
+  }
+
+  /***
+   * Allow changing default value for lock()
+   **/
+  static function setDefaultLock($lock) {
+    self::$defaultLock = $lock;
+  }
+
+  /***
+   * Handy SQL generation methods
+   **/
+  static function lock($mode=NULL) {
+    if ($mode === NULL) $mode = self::$defaultLock;
+
+    if ($mode == 'update') return ' FOR UPDATE';
+    elseif ($mode == 'share') return ' LOCK IN SHARE MODE';
+    elseif ($mode == 'none') return '';
+    else{
+      throw new Exception("Unknown MySQL lock mode: $mode");
+    }
+  }
+
+  static function interval($interval) {
+    if (!preg_match('/^[0-9]+ (DAY|MONTH|YEAR)$/', $interval)) throw new Exception('invalid interval');
+    return ' INTERVAL '.$interval;
+  }
+
+	static function field($name) {
+		$parts = explode('.', $name);
+		if (count($parts) > 1) return $parts[0].'.`'.$parts[1].'`';
+		else return '`'.$parts[0].'`';
+	}
+
+	static function fields($fields) {
+		if (is_array($fields)) return '`'.implode('`,`',$fields).'`';
+		else return $fields;
+	}
+
+	static function in($field, $options) {
+		if (is_string($options)) $options = array($options);
+    if (!$options) return '0';
+    else return self::field($field).' IN ('.implode(',', array_map('SQL', $options)).')';
+	}
+
+	static function not_in($field, $options) {
+		if (is_string($options)) $options = array($options);
+    if (!$options) return '1';
+    else return self::field($field).' NOT IN ('.implode(',', array_map('SQL', $options)).')';
+	}
+
+  static function table($table) {
+    if (strpos($table, '.') === False) return "`$table`";
+    else return $table;
+  }
+
+  static function from($table) {
+		if ($table) {
+      if (strpos($table, '.') === False) $table = "`$table`";
+			return ' FROM '.$table;
+		}else{
+			return '';
+		}
+  }
+
+  static function where($where) {
+		if (is_array($where)) {
+			$sql = '';
+			foreach ($where as $key=>$value) {
+				$sql .= ($sql?' AND ':'').'`'.$key.($value===NULL?'` is null':'`='.SQL($value));
+			}
+			return ' WHERE '.$sql;
+		}else if ($where) {
+		 	return ' WHERE '.$where;
+		}else return '';
+	}
+
+  static function removeLock(&$query) {
+    foreach (array(' FOR UPDATE', ' LOCK IN SHARE MODE') as $option) {
+      if (ends_with($query, $option)) {
+        $query = substr($query, 0, strlen($query)-strlen($option));
+        return $option;
+      }
+    }
+    return '';
   }
 }
 function SQL($value) { return SQL::encode($value); }

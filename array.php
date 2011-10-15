@@ -13,21 +13,25 @@ function ARR($arr,$var=NULL,$alt=NULL) {
     return $res;
   }
   
-  // Check array before matching for brackets
-  if (!(is_array($arr) && isset($arr[$var])) && preg_match('/(.*)?\[(.*)\]$/',$var,$m)) {
-    // Array search
-    $sub = ARR($arr,$m[1]);
-    if (!is_array($sub)) return $alt;
-    if ($m[2] === '') {
-      // Empty [], returns the entire array
-      return $sub;
-    }else{
-      return ARR($sub,$m[2],$alt);
-    }
-  }elseif (is_object($arr)) {
+  if (is_object($arr)) {
     return property_exists($arr, $var) || isset($arr->$var) ? $arr->$var : $alt;
-  }elseif ($arr && array_key_exists($var, $arr)) return $arr[$var];
-  else{
+  }elseif ($arr && array_key_exists($var, $arr)) {
+    return $arr[$var];
+  }else{
+    // Check array before matching for brackets (only if it looks like its possible
+    if ($var && $var[strlen($var)-1] == ']') { 
+      if (preg_match('/(.*)?\[(.*)\]$/',$var,$m)) {
+        // Array search
+        $sub = ARR($arr,$m[1]);
+        if (!is_array($sub)) return $alt;
+        if ($m[2] === '') {
+          // Empty [], returns the entire array
+          return $sub;
+        }else{
+          return ARR($sub,$m[2],$alt);
+        }
+      }
+    }
     return $alt;
   }
 }
@@ -43,6 +47,16 @@ function GET($var,$alt=NULL) { return ARR($_GET,$var,$alt); }
  * Additional array methods on top of php's set
  **/
 
+function array_first_key($array) {
+  reset($array);
+  return key($array);
+}
+function array_last_key($array) {
+  end($array);
+  return key($array);
+}
+
+/* @todo refactor return references out (confusing) */
 function &array_first(&$array) {
   reset($array);
   return $array[key($array)];
@@ -79,12 +93,12 @@ function options($in, $defaults) {
 }
 
 // parse data-xxy => $val; to xxy => $val
-function data_group(&$data, $group, $strip = True, $remove = False) {
+function data_prefix(&$data, $prefix, $strip = True, $remove = False) {
   $return = array();
-  $L = strlen($group);
+  $L = strlen($prefix);
   foreach ($data as $k => $v) {
-    if (substr($k, 0, $L+1) === "$group-") {
-      $return[$strip ? substr($k,$L+1) : $k] = $v;
+    if (substr($k, 0, $L) === $prefix) {
+      $return[$strip ? substr($k,$L) : $k] = $v;
       if ($remove) unset($data[$k]);
     }
   }
@@ -114,6 +128,19 @@ function array_flatten($array) {
 }
 
 /***
+  * Filters an array by key instead of value
+  **/
+function array_filter_key($input, $callback) {
+  $return = array();
+  foreach ($input as $k=>$v) {
+    if ($callback($k)) {
+      $return[$k] = $v;
+    }
+  }
+  return $return;
+}
+
+/***
   * Adds a prefix to each key for new $prefix.$key => $value
   **/
 function array_prefix_key($data, $prefix) {
@@ -122,6 +149,17 @@ function array_prefix_key($data, $prefix) {
     $return[$prefix.$k] = $v;
   }
   return $return;
+}
+
+/***
+ * Checks if an array is standard (as per normal arrays)
+ **/
+function array_is_standard($array) {
+  $index = 0;
+  foreach ($array as $k => $v) {
+    if ($k !== $index++) return False;
+  }
+  return True;
 }
 
 /***
@@ -148,9 +186,16 @@ function array_map_keys($array, $fn) {
 }
 
 /***
+ * Map both key and values
+ **/
+function array_map_kv($fn, $array) {
+  return array_map($fn, array_keys($array), array_values($array));
+}
+
+/***
   * Combines an array with itself for $value => $value
   **/
-function array_combine_same(&$input) {
+function array_combine_same($input) {
   return array_combine($input, $input);
 }
 
@@ -158,14 +203,15 @@ function array_combine_same(&$input) {
  * Convert an array into <option> html tags
  **/
 function html_options($options, $default=NULL, $multiple=False) {
+  $output = '';
   $group = NULL;
   foreach ($options as $key => $option) {
     $option = options($option, array('caption', 'group'));
     $option['key'] = ARR($option, 'key', $key);
 
     if (($g = ARR($option, 'group')) && ($g != $group)) {
-      if ($group) print '</optgroup>';
-      print '<optgroup label="'.HTML($g).'">';
+      if ($group) $output .= '</optgroup>';
+      $output .= '<optgroup label="'.HTML($g).'">';
       $group = $g;
     }
     $value = ARR($option, 'key');
@@ -176,12 +222,14 @@ function html_options($options, $default=NULL, $multiple=False) {
     } else {
       $selected = $default == $value;
     }
-    print '<option'.html_attributes(array(
+    $output .= '<option'.html_attributes(array(
       'value'=>$value,
       'data'=>ARR($option, 'data'),
       'selected'=>$selected?'selected':NULL
     )).'>'.HTML(ARR($option,'caption')).'</option>';
   }
-  if ($group) print '</optgroup>';
+  if ($group) $output .= '</optgroup>';
+
+  return $output;
 }
 
