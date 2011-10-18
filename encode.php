@@ -124,7 +124,7 @@ class HTML extends Value {
     if (is_array($value) || is_iterator($value)) {
       return map(function($value) use ($newlines) { return HTML::encode($value, $newlines); }, $value); 
     }elseif ($value instanceof Nullable && $value->isNull()) return NULL;
-    elseif ($value instanceof HTML) return $value->value;
+    elseif ($value instanceof HTML) return strval($value);
     elseif ($value === False || $value === NULL) return $value;
     elseif ($newlines) return str_replace("\n",'<br>',HTML($value));
     else return htmlentities(strval($value),ENT_QUOTES|ENT_IGNORE,'UTF-8');
@@ -138,10 +138,10 @@ function UNHTML($value) { return HTML::decode($value); }
 
 // URL
 class URL extends Value {
-  function encode($value) {
+  static function encode($value) {
     if (is_array($value)) return array_map('URL',$value); 
     elseif ($value instanceof Iterator) return map('URL', $value);
-    elseif ($value instanceof URL) return $value->value;
+    elseif ($value instanceof URL) return strval($value);
     else return urlencode(strval($value));
   }
 }
@@ -149,9 +149,9 @@ function URL($value) { return URL::encode($value); }
 
 // JSON
 class JSON extends Value {
-  function encode($value) {
+  static function encode($value) {
     if ($value instanceof Iterator) return map('JSON', $value);
-    elseif ($value instanceof JSON) return $value->value;
+    elseif ($value instanceof JSON) return strval($value);
     else return json_encode($value);
   }
 }

@@ -3,38 +3,54 @@
 class Autoload {
   static $paths = array();
 
-  static function addPath($path) {
-    self::$paths[] = $path.'/';
+  static function addPath($path, $split=array('\\', '_')) {
+    self::$paths[] = array($path.'/', $split);
   }
 
-  static function tryLoad($extension) {
+  static function testFile($path, $extension) {
     $extension = implode('/', $extension);
+    if (file_exists($path.$extension)) {
+      return $path.$extension;
+    }
+    return NULL;
+  }
 
+  static function testPath($path, $parts) {
+    $final = array_pop($parts);
+
+    if ($result = self::testFile($path, array_merge($parts, array($final, $final.'.php')))) {
+      return $result;
+    }
+
+    if ($result = self::testFile($path, array_merge($parts, array($final.'.php')))) {
+      return $result;
+    }
+
+    if ($parts) {
+      return self::testPath($path, $parts);
+    }
+  }
+
+  static function findPath($class) {
     foreach (self::$paths as $path) {
-      if (file_exists($path.$extension)) {
-        require_once $path.$extension;
-        return True;
+      if (is_array($class)) {
+        $parts = $class;
+      }else{
+        $parts = explode('\\', strtolower(str_replace($path[1], '\\', $class)));
+      }
+
+      if ($result = self::testPath($path[0], $parts)) {
+        return $result;
       }
     }
-    return False;
+    return NULL;
   }
+
   static function load($class) {
-    if (is_array($class)) $split = $class;
-    else $split = explode('_', strtolower(str_replace('\\', '_', $class)));
-    $final = array_pop($split);
-
-    if (self::tryLoad(array_merge($split, array($final, $final.'.php')))) {
+    if ($path = self::findPath($class)) {
+      require_once $path;
       return True;
     }
-
-    if (self::tryLoad(array_merge($split, array($final.'.php')))) {
-      return True;
-    }
-
-    if ($split) {
-      return self::load($split);
-    }
-
     return False;
   }
 

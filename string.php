@@ -16,3 +16,13 @@ function ends_with($string, $end) {
   return substr($string, -strlen($end)) === $end;
 }
 
+/**
+ * Simple english language tools
+ **/
+function bytesize($sz) {
+  foreach (array('b', 'kb', 'mb') as $suffix) {
+    if ($sz < 900) return round($sz).$suffix;
+    $sz /= 1024;
+  }
+  return round($sz).'gb';
+}
